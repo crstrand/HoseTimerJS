@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Hose Timer
+    </title>
+<!--  
+
+      CSS section
+      
+-->
+    <style>
+  /* (A) FONT */
+#ctime, #tpick {
+  font-family: sans-serif;
+}
+.header {
+  text-align: center;
+  font-weight: normal;
+  margin: 5px 0 10px 0;
+}
+
+/* (B) CURRENT TIME */
+#ctime {
+  margin: 0 auto;
+  max-width: 200px;
+  padding: 10px;
+  background: rgb(255, 0, 0);
+  text-align: center;
+}
+#ctime .header {
+  color: #c61d1d;
+}
+#ctime .square {
+  display: inline-block;
+  padding: 0px;
+  margin: 0px;
+}
+#ctime .digits {
+  font-size: 24px;
+  background: rgba(255, 255, 255, 0);
+  color: #fff;
+  border-radius: 5px;
+}
+#ctime .text {
+  margin-top: 10px;
+  color: #ddd;
+}
+
+/* (C) TIME PICKER */
+#tpick {
+  margin: 0 auto;
+  max-width: 200px;
+  padding: 10px;
+  background: #f2f2f2;
+  white-space: nowrap;
+}
+#tpick-m {
+  display: inline-block;
+  width: 100%;
+}
+#tpick select {
+  box-sizing: padding-box;
+  width: 100%;
+  text-align: center;
+  font-size: 1.2em;
+  font-weight: bold;
+  margin: 20px 0;
+}
+#tstart {
+  box-sizing: padding-box;
+  width: 100%;
+  height: 3em;
+  background: #0c9113;
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+}
+#tstop {
+  box-sizing: padding-box;
+  width: 100%;
+  height: 3em;
+  background: #ff0000;
+  color: #fff;
+  border: 0;
+  cursor: pointer;
+}
+#tstart:disabled, #tstop:disabled {
+  background: #aaa;
+  color: #888;
+}
+    </style>
+
+<!-- 
+
+      javascript section
+      
+-->
+    <script>
+  var ac = {
+
+  // (A) INITIALIZE TIMER
+  init : function () {
+    // (A1) CREATE REFERENCES FOR CLOCK, MIN, SECONDS
+    ac.ctime = document.getElementById("ctime");
+    ac.cmin = document.getElementById("cmin");
+    ac.csec = document.getElementById("csec");
+
+    // (A2) CREATE TIME PICKER - MIN
+    ac.thm = ac.createSel(10);
+    document.getElementById("tpick-m").appendChild(ac.thm);
+    ac.thm.addEventListener("change", ac.thmChange);
+
+    // (A3) CREATE TIME PICKER - startTimer, stopTimer
+    ac.tstart = document.getElementById("tstart");
+    ac.tstart.addEventListener("click", ac.startTimer);
+    ac.tstop = document.getElementById("tstop");
+    ac.tstop.addEventListener("click", ac.stopTimer);
+
+    // (A4) GET ALARM SOUND
+    ac.sound = document.getElementById("alarm-sound");
+    
+    // (A5) START THE CLOCK
+    var now = new Date().getTime();
+    ac.tRemain = new Date().setTime(new Date(0));
+    fetch('http://10.0.10.76/tRemain', { method: 'GET', headers: {'Origin':'http://10.0.10.76',} })
+      .then(response => response.text()) 
+      .then(function(mydata) {
+      console.info("fetch mydata = " + mydata);
+      ac.updateClock(mydata);
+      })
+      .catch(err => console.log(err));
+
+    _alarm = new Date(now + ac.tRemain);
+    console.info("now from arduino: " + now);
+    console.info("ac.tRemain from arduino: " + ac.tRemain);
+    console.info("_alarm from arduino: " + _alarm);
+    //setInterval(ac.tick, 1000);
+  },
+
+  // (B) SUPPORT FUNCTION - CREATE SELECTOR FOR HR, MIN, SEC
+  createSel : function (max) {
+    const choices = [.1,5,10,20,30];
+    var selector = document.createElement("select");
+    for (let i in choices) {
+      var opt = document.createElement("option");
+      temp = choices[i];//ac.padzero(choices[i]);
+      opt.value = temp;
+      opt.innerHTML = temp;
+      selector.appendChild(opt);
+    }
+    return selector
+  },
+
+  // (C) SUPPORT FUNCTION - PREPEND HR, MIN, SEC WITH 0 (IF < 10)
+  padzero : function (num) {
+    if (num < 10) { num = "0" + num; }
+    else { num = num.toString(); }
+    return num;
+  },
+
+  // (D) UPDATE CURRENT TIME
+  tick : function () {
+    if (ac.alarm != null) {
+
+    // Get today's date and time
+    var now = new Date().getTime();
+
+    // Find the tRemain between now and the count down date
+    var tickRemain = ac.alarm - now;
+    ac.updateClock(tickRemain);
+
+    // (D3) CHECK AND SOUND ALARM
+      if (tickRemain <= 0) {
+        if (ac.sound.paused) { ac.sound.play(); }
+        ac.alarm=null; // stop countdown
+        ac.stopTimer();
+      }
+    }
+  },
+
+  updateClock : function (_tRemain) {
+    if(_tRemain>0)
+    {
+    // Time calculations for minutes and seconds
+    var minutes = Math.floor((_tRemain % (1000 * 60 * 60)) / (1000 * 60));
+    var seconds = Math.floor((_tRemain % (1000 * 60)) / 1000);
+    var min = ac.padzero(minutes);
+    var sec = ac.padzero(seconds);
+
+    // (D2) UPDATE HTML CLOCK
+    ac.cmin.innerHTML = min;
+    ac.csec.innerHTML = sec;
+    ac.tRemain = new Date().setTime(_tRemain);
+  
+    console.info("updateClock: ac.tRemain = " + ac.tRemain);
+    }
+  },
+
+  // (E) startTimer 
+  startTimer : function () {
+    var now = new Date().getTime();
+    if(ac.alarm==null || ac.alarm <= 0)
+      ac.alarm = new Date(now + ac.thm.value*60000);
+    ac.thm.disabled = true;
+    ac.tstart.disabled = true;
+    ac.tstop.disabled = false;
+    // green background because we should be counting down
+    ac.ctime.style.backgroundColor = "green";
+    // send POST with ac.thm.value (duration in milliseconds)
+    ac.tickInterval = setInterval(ac.tick, 1000);
+
+  },
+
+  // (F) stopTimer 
+  stopTimer : function () {
+    //if (!ac.sound.paused) { ac.sound.pause(); }
+    ac.alarm = null;
+    ac.thm.disabled = false;
+    ac.tstart.disabled = false;
+    ac.tstop.disabled = true;
+    ac.ctime.style.backgroundColor = "red";
+    ac.updateClock(ac.thm.value*60000);
+    // send POST with zero "0" to turn off relay
+    clearInterval(ac.tickInterval);
+  },
+
+  GETtRemain : async function () {
+    try {
+      const response = await fetch('/tRemain',{ method: 'GET'});
+      const tempval = await response.json();
+      obj = parseInt(tempval);
+      console.log("GETtRemain: tempval = " + obj);
+      ac.csec.innerHTML = obj;
+      return obj;
+    }
+    catch (error) {
+      console.error(error);
+    }
+  },
+
+  thmChange : function () {
+    ac.updateClock(ac.thm.value*60000);
+  }
+};
+
+window.addEventListener("load", ac.init);
+  </script>
+  </head>
+  <body>
+    <!-- (A) CURRENT TIME -->
+    <div id="ctime">
+      <div class="square">
+        <div class="digits" id="cmin">0</div>
+      </div>
+      <div class="square">
+        <div class="digits">:</div>
+      </div>
+      <div class="square">
+        <div class="digits" id="csec">00</div>
+      </div>
+    </div>
+
+    <!-- (B) startTimer -->
+    <div id="tpick">
+      <div id="tpick-m"></div>
+      <div>
+        <input type="button" value="Start" id="tstart"/>
+      </div>
+      <div>
+        <input type="button" value="Stop" id="tstop" disabled/>
+      </div>
+    </div>
+
+    <!-- (C) ALARM SOUND -->
+    <audio id="alarm-sound">
+      <source src="https://upload.wikimedia.org/wikipedia/commons/d/d9/Wilhelm_Scream.ogg" type="audio/ogg">
+    </audio>
+  </body>
+</html>
