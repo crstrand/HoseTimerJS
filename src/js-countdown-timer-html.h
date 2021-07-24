@@ -11,7 +11,20 @@ const char clockhtml[] PROGMEM = {R"=====(
       
 -->
     <style>
-  /* (A) FONT */
+.probes-container {
+  height:100vh;
+  overflow-y: auto;
+}
+.boxes {
+  width: 90vw;
+  height: auto;
+  margin-bottom: 1vh;
+  padding: 2vh 0;
+  background: #404040;
+  border-radius: 0.5vh;
+}
+
+/* (A) FONT */
 #ctime, #tpick {
   font-family: sans-serif;
 }
@@ -23,9 +36,12 @@ const char clockhtml[] PROGMEM = {R"=====(
 
 /* (B) CURRENT TIME */
 #ctime {
-  margin: 0 auto;
-  max-width: 200px;
-  padding: 10px;
+  width: 90vw;
+  height: auto;
+  margin-bottom: 1vh;
+  padding: 2vh 0;
+  background: #404040;
+  border-radius: 0.5vh;
   background: rgb(255, 0, 0);
   text-align: center;
 }
@@ -38,49 +54,54 @@ const char clockhtml[] PROGMEM = {R"=====(
   margin: 0px;
 }
 #ctime .digits {
-  font-size: 24px;
+  font-size: 15vh;
   background: rgba(255, 255, 255, 0);
   color: #fff;
   border-radius: 5px;
 }
 #ctime .text {
-  margin-top: 10px;
+  margin-top: 15vh;
   color: #ddd;
 }
 
 /* (C) TIME PICKER */
 #tpick {
-  margin: 0 auto;
-  max-width: 200px;
-  padding: 10px;
+  width: 90vw;
+  height: auto;
+  margin-bottom: 1vh;
+  padding: 2vh 0;
   background: #f2f2f2;
   white-space: nowrap;
 }
 #tpick-m {
-  display: inline-block;
   width: 100%;
 }
 #tpick select {
-  box-sizing: padding-box;
-  width: 100%;
-  text-align: center;
-  font-size: 1.2em;
+  width: 85vw;
+  font-size: 15vh;
+  text-align-last: right;
   font-weight: bold;
   margin: 20px 0;
 }
 #tstart {
-  box-sizing: padding-box;
-  width: 100%;
-  height: 3em;
+  width: 85vw;
+  height: auto;
+  font-size: 15vh;
+  font-weight: bold;
+  margin-bottom: 1vh;
+  padding: 2vh 0;
   background: #0c9113;
   color: #fff;
   border: 0;
   cursor: pointer;
 }
 #tstop {
-  box-sizing: padding-box;
-  width: 100%;
-  height: 3em;
+  width: 85vw;
+  height: auto;
+  font-size: 15vh;
+  font-weight: bold;
+  margin-bottom: 1vh;
+  padding: 2vh 0;
   background: #ff0000;
   color: #fff;
   border: 0;
@@ -110,7 +131,7 @@ const char clockhtml[] PROGMEM = {R"=====(
     // (A2) CREATE TIME PICKER - MIN
     ac.thm = ac.createSel(10);
     document.getElementById("tpick-m").appendChild(ac.thm);
-    ac.thm.addEventListener("change", ac.thmChange)
+    ac.thm.addEventListener("change", ac.thmChange);
 
     // (A3) CREATE TIME PICKER - startTimer, stopTimer
     ac.tstart = document.getElementById("tstart");
@@ -127,29 +148,18 @@ const char clockhtml[] PROGMEM = {R"=====(
     ac.alarm = null;
 
     // FETCH the remaining time from the server in case the timer was started by someone else
-    fetch('http://10.0.10.76/tRemain', { method: 'GET', headers: {Origin:'http://10.0.10.76'} })
-      .then(response => response.text()) 
-      .then(function(mydata) {
-        console.info("fetch mydata = " + mydata);
-        ac.tRemain = parseInt(mydata);
-        ac.updateClock(mydata);
-        if(ac.tRemain>0)
-        {
-          ac.alarm = new Date(now + ac.tRemain);
-          ac.startTimer();
-        }
-      })
-      .catch(err => console.log(err));
-
-    //ac.tickInterval = setInterval(ac.tick, 1000);
+    ac.GETupdate();
+    ac.tickInterval = setInterval(ac.tick, 1000);
   },
 
   // (B) SUPPORT FUNCTION - CREATE SELECTOR FOR HR, MIN, SEC
   createSel : function (max) {
     const choices = [.1,5,10,20,30];
     var selector = document.createElement("select");
+    selector.style.textAlign = "right";
     for (let i in choices) {
       var opt = document.createElement("option");
+      opt.style.direction = "rtl";
       temp = choices[i];//ac.padzero(choices[i]);
       opt.value = temp;
       opt.innerHTML = temp;
@@ -167,7 +177,8 @@ const char clockhtml[] PROGMEM = {R"=====(
 
   // (D) UPDATE CURRENT TIME
   tick : function () {
-    if (ac.alarm != null) {
+    //if (ac.alarm != null) 
+    {
 
     // Get today's date and time
     var now = new Date().getTime();
@@ -179,10 +190,13 @@ const char clockhtml[] PROGMEM = {R"=====(
     // (D3) CHECK AND SOUND ALARM
       if (tickRemain <= 0) {
         if (ac.sound.paused) { ac.sound.play(); }
-        ac.alarm=null; // stop countdown
+        while(ac.sound.onplaying){}
         ac.stopTimer();
       }
     }
+    // get the time from the server
+    ac.GETupdate();
+
   },
 
   updateClock : function (_tRemain) {
@@ -210,26 +224,27 @@ const char clockhtml[] PROGMEM = {R"=====(
       ac.alarm = new Date(now + ac.thm.value*60000);
       // send POST with ac.thm.value (duration in milliseconds) so the server knows to start the device
       ac.SETtRemain(ac.thm.value*60000);
+      ac.sound.pause();
     }
     ac.thm.disabled = true;
     ac.tstart.disabled = true;
     ac.tstop.disabled = false;
     // green background because we should be counting down
     ac.ctime.style.backgroundColor = "green";
-    ac.tickInterval = setInterval(ac.tick, 1000);
+    //ac.tickInterval = setInterval(ac.tick, 1000);
 
   },
 
   // (F) stopTimer 
   stopTimer : function () {
-    //if (!ac.sound.paused) { ac.sound.pause(); }
+    if (!ac.sound.paused) { ac.sound.pause(); }
     ac.alarm = null;
     ac.thm.disabled = false;
     ac.tstart.disabled = false;
     ac.tstop.disabled = true;
     ac.ctime.style.backgroundColor = "red";
     ac.updateClock(ac.thm.value*60000);
-    clearInterval(ac.tickInterval);
+    //clearInterval(ac.tickInterval);
     // send POST with zero "0" to turn off device
     ac.SETtRemain(0);
   },
@@ -257,18 +272,23 @@ const char clockhtml[] PROGMEM = {R"=====(
     }
   },
 
-  GETtRemain : async function () {
-    try {
-      const response = await fetch('/tRemain',{ method: 'GET'});
-      const tempval = await response.json();
-      obj = parseInt(tempval);
-      console.log("GETtRemain: tempval = " + obj);
-      ac.csec.innerHTML = obj;
-      return obj;
-    }
-    catch (error) {
-      console.error(error);
-    }
+  GETupdate : function() {
+    fetch('http://10.0.10.76/tRemain', { method: 'GET' })
+      .then(response => response.text()) 
+      .then(function(mydata) {
+        console.info("fetch mydata = " + mydata);
+        ac.tRemain = parseInt(mydata);
+        ac.updateClock(mydata);
+        if(ac.tRemain>0)
+        {
+          var now = new Date().getTime();
+          ac.alarm = new Date(now + ac.tRemain);
+          ac.startTimer();
+        }
+        //else
+        //  ac.alarm = null;
+      })
+      .catch(err => console.log(err));
   },
 
   thmChange : function () {
@@ -280,30 +300,33 @@ window.addEventListener("load", ac.init);
   </script>
   </head>
   <body>
-    <!-- (A) CURRENT TIME -->
-    <div id="ctime">
-      <div class="square">
-        <div class="digits" id="cmin">0</div>
+  <center>
+    <div class='main-container' id='mainIndex'>
+      <!-- (A) CURRENT TIME -->
+      <div id="ctime">
+        <div class="square">
+          <div class="digits" id="cmin">0</div>
+        </div>
+        <div class="square">
+          <div class="digits">:</div>
+        </div>
+        <div class="square">
+          <div class="digits" id="csec">00</div>
+        </div>
       </div>
-      <div class="square">
-        <div class="digits">:</div>
-      </div>
-      <div class="square">
-        <div class="digits" id="csec">00</div>
+
+      <!-- (B) startTimer -->
+      <div id="tpick">
+        <div id="tpick-m"></div>
+        <div>
+          <input type="button" value="Start" id="tstart"/>
+        </div>
+        <div>
+          <input type="button" value="Stop" id="tstop" disabled/>
+        </div>
       </div>
     </div>
-
-    <!-- (B) startTimer -->
-    <div id="tpick">
-      <div id="tpick-m"></div>
-      <div>
-        <input type="button" value="Start" id="tstart"/>
-      </div>
-      <div>
-        <input type="button" value="Stop" id="tstop" disabled/>
-      </div>
-    </div>
-
+  </center>
     <!-- (C) ALARM SOUND -->
     <audio id="alarm-sound">
       <source src="https://upload.wikimedia.org/wikipedia/commons/d/d9/Wilhelm_Scream.ogg" type="audio/ogg">

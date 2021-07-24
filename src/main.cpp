@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include "js-countdown-clock-html.h"
+#include "js-countdown-timer-html.h"
 
 #include <DNSServer.h>
 #ifdef ESP32
@@ -10,11 +10,15 @@
 #include <ESPAsyncTCP.h>
 #endif
 #include "ESPAsyncWebServer.h"
+#define ON true
+#define OFF false
+#define RELAY_PIN D1
 
 char ssid[] = "Strandlund_IoT";     //  your network SSID (name)
 char pass[] = "3066962933";  // your network password
 int status = WL_IDLE_STATUS;     // the Wifi radio's status
-uint32_t tRemain = 3000; // remaining time in milliseconds
+uint32_t tDuration = 3000; // remaining time in milliseconds
+uint32_t tRemain = 0;
 uint32_t fromClient = 0;
 
 DNSServer dnsServer;
@@ -37,40 +41,14 @@ public:
     for(size_t i=0; i<len; i++){
       newDuration+=((data[i]-'0')*pow(10,(len-i-1)));
     }
-    tRemain = newDuration;
+    tDuration = newDuration;
     Serial.printf("\nnewDuration = %d\n",newDuration);
   }
 
   void handleRequest(AsyncWebServerRequest *request)
   {
 
-    Serial.printf("url: [%s]\t",request->url().c_str());
-/*
-    //List all parameters
-    int params = request->params();
-    int args = request->args();
-    int headers = request->headers();
-    String type = request->contentType();
-    int typelen = request->contentLength();
-
-    Serial.printf("method: [%s]\t",request->methodToString());
-    Serial.printf("#args: %i\t#headers: %i\t#params: %i\n",args,headers,params);
-    Serial.printf("type: %s, len=%d\n",type.c_str(),typelen);
-
-    for(int i=0;i<params;i++){
-      AsyncWebParameter* p = request->getParam(i);
-      if(p->isFile()){ //p->isPost() is also true
-        Serial.printf("FILE[%s]: %s, size: %u\n", p->name().c_str(), p->value().c_str(), p->size());
-      } else if(p->isPost()){
-        Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
-      } else {
-        Serial.printf("GET[%s]: %s\n", p->name().c_str(), p->value().c_str());
-      }
-    }
-
-    for(int i=0;i<args;i++)
-      Serial.printf("ARG[%s]: %s\n", request->argName(i).c_str(), request->arg(i).c_str());
-*/    
+    //Serial.printf("url: [%s]\t",request->url().c_str());
     AsyncResponseStream *response;
     if(request->method()==HTTP_GET)
     {
@@ -89,9 +67,16 @@ public:
   }
 };
 
-bool filterOnPOST(AsyncWebServerRequest *request) { return request->method() == HTTP_POST; }
+void relay_state(bool state)
+{
+  digitalWrite(RELAY_PIN,state);
+  Serial.printf("Relay: %s\n",(state==true?"ON":"OFF"));
+}
 
 void setup(){
+  pinMode(RELAY_PIN,OUTPUT);
+  relay_state(OFF);
+
   Serial.begin(74880);
 
   WiFi.mode(WIFI_STA);
@@ -103,9 +88,7 @@ void setup(){
 
   dnsServer.start(53, "*", WiFi.localIP());
 
-  // set up handler to handle the HTTP_GET for tRemain
-  //server.addHandler(new CaptiveRequestHandler()).setFilter(filterOnGET);
-
+  // use one handler for everything as this is a very simple webserver
   server.addHandler(new CaptiveRequestHandler()).setFilter(ON_STA_FILTER);
   //more handlers...
   server.begin();
@@ -113,13 +96,40 @@ void setup(){
   Serial.println(WiFi.localIP());
 }
 
-uint32_t prevDuration=tRemain;
+uint32_t prevDuration=tDuration;
+unsigned long msecStart;
+unsigned long msecInterval=1000;
+unsigned long tStop=0;
+bool timerState=OFF;
+bool prevState=OFF;
 
 void loop(){
-  if(prevDuration!=tRemain)
+  if(millis()-msecStart>=msecInterval)
   {
-    Serial.printf("New Duration received: %d\n",tRemain);
-    prevDuration = tRemain;
+    msecStart = millis();
+    if(tRemain<=0) // we're done
+      timerState = OFF;
+    else
+    {
+      // update tRemain
+      tRemain = tStop-millis();
+      if(tRemain<msecInterval)
+        tRemain=0;
+    }
+    if(timerState!=prevState)
+    {
+      prevState=timerState;
+      relay_state(timerState);
+    }
+    //Serial.printf("tRemain = %d\n",tRemain);
+  }
+  if(prevDuration!=tDuration)
+  {
+    Serial.printf("New Duration received: %d\n",tDuration);
+    prevDuration = tDuration;
+    tStop = tDuration + millis();
+    tRemain = tDuration;
+    timerState = (tDuration>0);
   }
   dnsServer.processNextRequest();
 }
