@@ -141,6 +141,7 @@ const char clockhtml[] PROGMEM = {R"=====(
 
     // (A4) GET ALARM SOUND
     ac.sound = document.getElementById("alarm-sound");
+    ac.sound.loop = false;
     
     // (A5) START THE CLOCK
     var now = new Date().getTime();
@@ -154,7 +155,7 @@ const char clockhtml[] PROGMEM = {R"=====(
 
   // (B) SUPPORT FUNCTION - CREATE SELECTOR FOR HR, MIN, SEC
   createSel : function (max) {
-    const choices = [.1,5,10,20,30];
+    const choices = [10,20,30];
     var selector = document.createElement("select");
     selector.style.textAlign = "right";
     for (let i in choices) {
@@ -177,25 +178,20 @@ const char clockhtml[] PROGMEM = {R"=====(
 
   // (D) UPDATE CURRENT TIME
   tick : function () {
-    //if (ac.alarm != null) 
-    {
-
-    // Get today's date and time
-    var now = new Date().getTime();
-
-    // Find the tickRemain between now and the count down date
-    var tickRemain = ac.alarm - now;
-    ac.updateClock(tickRemain);
-
-    // (D3) CHECK AND SOUND ALARM
-      if (tickRemain <= 0) {
-        if (ac.sound.paused) { ac.sound.play(); }
-        while(ac.sound.onplaying){}
-        ac.stopTimer();
-      }
-    }
+    //console.log("TICK");
     // get the time from the server
     ac.GETupdate();
+    ac.updateClock(ac.tRemain);
+
+    if (ac.timerState) 
+    {
+      // (D3) CHECK AND SOUND ALARM
+        if (ac.tRemain <= 0) {
+          if (ac.sound.paused) { ac.sound.play();
+          ac.stopTimer();
+          }
+        }
+    }
 
   },
 
@@ -218,10 +214,8 @@ const char clockhtml[] PROGMEM = {R"=====(
 
   // (E) startTimer 
   startTimer : function () {
-    var now = new Date().getTime();
-    if(ac.alarm==null || ac.alarm <= 0) // we are starting the timer
+    if (!ac.timerState) 
     {
-      ac.alarm = new Date(now + ac.thm.value*60000);
       // send POST with ac.thm.value (duration in milliseconds) so the server knows to start the device
       ac.SETtRemain(ac.thm.value*60000);
       ac.sound.pause();
@@ -231,26 +225,30 @@ const char clockhtml[] PROGMEM = {R"=====(
     ac.tstop.disabled = false;
     // green background because we should be counting down
     ac.ctime.style.backgroundColor = "green";
-    //ac.tickInterval = setInterval(ac.tick, 1000);
-
+    ac.timerState = true;
   },
 
   // (F) stopTimer 
   stopTimer : function () {
-    if (!ac.sound.paused) { ac.sound.pause(); }
-    ac.alarm = null;
+    //if (!ac.sound.paused) { ac.sound.pause(); }
     ac.thm.disabled = false;
     ac.tstart.disabled = false;
     ac.tstop.disabled = true;
     ac.ctime.style.backgroundColor = "red";
     ac.updateClock(ac.thm.value*60000);
-    //clearInterval(ac.tickInterval);
     // send POST with zero "0" to turn off device
     ac.SETtRemain(0);
+    ac.timerState = false;
   },
 
   SETtRemain : async function (data) {
     try {
+      // disable tick during POST
+      clearInterval(ac.tickInterval);
+      console.log("tick OFF");
+      ac.tRemain = parseInt(data);
+      console.log("SETtRemain: ac.tRemain = "+ac.tRemain.toString());
+
       const response = await fetch('/tRemain',{ 
         method: 'POST',
         mode: 'cors', // no-cors, *cors, same-origin
@@ -265,28 +263,30 @@ const char clockhtml[] PROGMEM = {R"=====(
         });
 
       const tempval = await response.json();
-      console.log("SETtRemain: tempval = " + tempval);
     }
     catch (error) {
       console.error(error);
     }
+    // re-enable tick after POST
+    ac.tickInterval = setInterval(ac.tick, 1000);
+    console.log("tick ON");
+
   },
 
   GETupdate : function() {
     fetch('http://10.0.10.76/tRemain', { method: 'GET' })
       .then(response => response.text()) 
       .then(function(mydata) {
-        console.info("fetch mydata = " + mydata);
         ac.tRemain = parseInt(mydata);
-        ac.updateClock(mydata);
-        if(ac.tRemain>0)
+        if(ac.timerState) console.info("fetch mydata = " + mydata);
+        if(ac.tRemain>0 && !ac.timerState)
         {
-          var now = new Date().getTime();
-          ac.alarm = new Date(now + ac.tRemain);
+          ac.timerState = true;
           ac.startTimer();
         }
-        //else
-        //  ac.alarm = null;
+        //if(ac.tRemain<=0 && ac.timerState)
+          //ac.stopTimer();
+
       })
       .catch(err => console.log(err));
   },

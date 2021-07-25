@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include "js-countdown-timer-html.h"
 
-#include <DNSServer.h>
 #ifdef ESP32
 #include <WiFi.h>
 #include <AsyncTCP.h>
@@ -21,7 +20,6 @@ uint32_t tDuration = 3000; // remaining time in milliseconds
 uint32_t tRemain = 0;
 uint32_t fromClient = 0;
 
-DNSServer dnsServer;
 AsyncWebServer server(80);
 
 class CaptiveRequestHandler : public AsyncWebHandler {
@@ -38,11 +36,14 @@ public:
   void handleBody(AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total){
     // the number is sent as an array of characters ie: 1200 = '1','2','0','0'
     uint32_t newDuration=0;
-    for(size_t i=0; i<len; i++){
-      newDuration+=((data[i]-'0')*pow(10,(len-i-1)));
+    if(request->method()==HTTP_POST)
+    {
+      for(size_t i=0; i<len; i++){
+        newDuration+=((data[i]-'0')*pow(10,(len-i-1)));
+      }
+      tDuration = newDuration;
+      Serial.printf("handleRequest: POST\nnewDuration = %d\n",newDuration);
     }
-    tDuration = newDuration;
-    Serial.printf("\nnewDuration = %d\n",newDuration);
   }
 
   void handleRequest(AsyncWebServerRequest *request)
@@ -50,9 +51,9 @@ public:
 
     //Serial.printf("url: [%s]\t",request->url().c_str());
     AsyncResponseStream *response;
+    response = request->beginResponseStream("text/html");
     if(request->method()==HTTP_GET)
     {
-      response = request->beginResponseStream("text/html");
       if(request->url() == "/tRemain")
         response->print(String(tRemain)); // reply with the current value of tRemain
       else
@@ -60,9 +61,10 @@ public:
 
       request->send(response);
     }
-    else if(request->method()==HTTP_POST)
+    if(request->method()==HTTP_POST)
     {
-      Serial.println("handleRequest: POST");
+      response->print(String(tRemain)); // reply with the current value of tRemain
+      request->send(response);
     }
   }
 };
@@ -85,8 +87,6 @@ void setup(){
       Serial.printf("WiFi Failed!\n");
       return;
   }
-
-  dnsServer.start(53, "*", WiFi.localIP());
 
   // use one handler for everything as this is a very simple webserver
   server.addHandler(new CaptiveRequestHandler()).setFilter(ON_STA_FILTER);
@@ -131,5 +131,4 @@ void loop(){
     tRemain = tDuration;
     timerState = (tDuration>0);
   }
-  dnsServer.processNextRequest();
 }
