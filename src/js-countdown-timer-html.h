@@ -24,6 +24,9 @@ const char clockhtml[] PROGMEM = {R"=====(
   border-radius: 0.5vh;
 }
 
+.button {
+  border-radius: 1vh;
+}
 /* (A) FONT */
 #ctime, #tpick {
   font-family: sans-serif;
@@ -41,7 +44,7 @@ const char clockhtml[] PROGMEM = {R"=====(
   margin-bottom: 1vh;
   padding: 2vh 0;
   background: #404040;
-  border-radius: 0.5vh;
+  border-radius: 1vh;
   background: rgb(255, 0, 0);
   text-align: center;
 }
@@ -55,6 +58,7 @@ const char clockhtml[] PROGMEM = {R"=====(
 }
 #ctime .digits {
   font-size: 15vh;
+  font-weight: bold;
   background: rgba(255, 255, 255, 0);
   color: #fff;
   border-radius: 5px;
@@ -70,6 +74,7 @@ const char clockhtml[] PROGMEM = {R"=====(
   height: auto;
   margin-bottom: 1vh;
   padding: 2vh 0;
+  border-radius: 1vh;
   background: #f2f2f2;
   white-space: nowrap;
 }
@@ -79,10 +84,12 @@ const char clockhtml[] PROGMEM = {R"=====(
 #tpick select {
   width: 85vw;
   font-size: 15vh;
-  text-align-last: right;
+  text-align-last: center;
   font-weight: bold;
   margin: 20px 0;
+  border-radius: 1vh;
 }
+
 #tstart {
   width: 85vw;
   height: auto;
@@ -132,6 +139,7 @@ const char clockhtml[] PROGMEM = {R"=====(
     ac.thm = ac.createSel(10);
     document.getElementById("tpick-m").appendChild(ac.thm);
     ac.thm.addEventListener("change", ac.thmChange);
+    ac.thmChange();
 
     // (A3) CREATE TIME PICKER - startTimer, stopTimer
     ac.tstart = document.getElementById("tstart");
@@ -155,13 +163,13 @@ const char clockhtml[] PROGMEM = {R"=====(
 
   // (B) SUPPORT FUNCTION - CREATE SELECTOR FOR HR, MIN, SEC
   createSel : function (max) {
-    const choices = [10,20,30];
+    const choices = [10,20,30,0.1];
     var selector = document.createElement("select");
-    selector.style.textAlign = "right";
     for (let i in choices) {
       var opt = document.createElement("option");
       opt.style.direction = "rtl";
-      temp = choices[i];//ac.padzero(choices[i]);
+      opt.style.fontWeight = "bold";
+      temp = choices[i];
       opt.value = temp;
       opt.innerHTML = temp;
       selector.appendChild(opt);
@@ -274,7 +282,7 @@ const char clockhtml[] PROGMEM = {R"=====(
   },
 
   GETupdate : function() {
-    fetch('http://10.0.10.76/tRemain', { method: 'GET' })
+    fetch('http://hosetimer/tRemain', { method: 'GET' })
       .then(response => response.text()) 
       .then(function(mydata) {
         ac.tRemain = parseInt(mydata);
@@ -284,9 +292,6 @@ const char clockhtml[] PROGMEM = {R"=====(
           ac.timerState = true;
           ac.startTimer();
         }
-        //if(ac.tRemain<=0 && ac.timerState)
-          //ac.stopTimer();
-
       })
       .catch(err => console.log(err));
   },
@@ -319,10 +324,10 @@ window.addEventListener("load", ac.init);
       <div id="tpick">
         <div id="tpick-m"></div>
         <div>
-          <input type="button" value="Start" id="tstart"/>
+          <input type="button" class="button" value="Start" id="tstart"/>
         </div>
         <div>
-          <input type="button" value="Stop" id="tstop" disabled/>
+          <input type="button" class="button" value="Stop" id="tstop" disabled/>
         </div>
       </div>
     </div>

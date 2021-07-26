@@ -82,16 +82,18 @@ void setup(){
   Serial.begin(74880);
 
   WiFi.mode(WIFI_STA);
+  WiFi.hostname("hosetimer");
   WiFi.begin(ssid, pass);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
       Serial.printf("WiFi Failed!\n");
       return;
   }
-
+  
   // use one handler for everything as this is a very simple webserver
   server.addHandler(new CaptiveRequestHandler()).setFilter(ON_STA_FILTER);
   //more handlers...
   server.begin();
+
   Serial.print("server available at ");
   Serial.println(WiFi.localIP());
 }
