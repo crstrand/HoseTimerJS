@@ -11,19 +11,6 @@ const char clockhtml[] PROGMEM = {R"=====(
       
 -->
     <style>
-.probes-container {
-  height:100vh;
-  overflow-y: auto;
-}
-.boxes {
-  width: 90vw;
-  height: auto;
-  margin-bottom: 1vh;
-  padding: 2vh 0;
-  background: #404040;
-  border-radius: 0.5vh;
-}
-
 .button {
   border-radius: 1vh;
 }
@@ -37,13 +24,40 @@ const char clockhtml[] PROGMEM = {R"=====(
   margin: 5px 0 10px 0;
 }
 
+#picbutton {
+  float: right; 
+  padding: 0 5vw 0 0; /* top right bottom left OR vertical horizontal*/
+}
+
+input#un-mute {
+  display: none;
+}
+
+.mute img {
+  height: 18vh;
+  width: 18vw;
+}
+
+.unmute img {
+  display: none;
+  height: 18vh;
+  width: 18vw;
+}
+
+input#un-mute:checked ~ .unmute img {
+  display: initial;
+}
+
+input#un-mute:checked ~ .mute img {
+  display: none;
+}
+
 /* (B) CURRENT TIME */
 #ctime {
-  width: 90vw;
+  width: auto;
   height: auto;
-  margin-bottom: 1vh;
-  padding: 2vh 0;
-  background: #404040;
+  padding: 2vh; /* top right bottom left OR vertical horizontal*/
+  margin: 0 4vw;
   border-radius: 1vh;
   background: rgb(255, 0, 0);
   text-align: center;
@@ -68,26 +82,35 @@ const char clockhtml[] PROGMEM = {R"=====(
   color: #ddd;
 }
 
+#tim_sel_div {
+  width: auto;
+  height: 20vh;
+  background: #ffffff00;
+  border-radius: 0.5vh;
+}
+
 /* (C) TIME PICKER */
 #tpick {
   width: 90vw;
   height: auto;
-  margin-bottom: 1vh;
+  margin-bottom: 0vh;
   padding: 2vh 0;
   border-radius: 1vh;
   background: #f2f2f2;
   white-space: nowrap;
 }
 #tpick-m {
-  width: 100%;
+  width: 65vw;
+  float: left;
+  margin-top: 1vh
 }
 #tpick select {
-  width: 85vw;
+  width: 60vw;
   font-size: 15vh;
   text-align-last: center;
   font-weight: bold;
-  margin: 20px 0;
   border-radius: 1vh;
+  margin-left: 0;
 }
 
 #tstart {
@@ -114,10 +137,16 @@ const char clockhtml[] PROGMEM = {R"=====(
   border: 0;
   cursor: pointer;
 }
-#tstart:disabled, #tstop:disabled {
+
+#tstart:disabled {
   background: #aaa;
   color: #888;
 }
+#tstop:disabled {
+  background: #aaa;
+  color: #888;
+}
+
     </style>
 
 <!-- 
@@ -155,6 +184,8 @@ const char clockhtml[] PROGMEM = {R"=====(
     var now = new Date().getTime();
     ac.tRemain = new Date().setTime(0);
     ac.alarm = null;
+
+    ac.un_mute = document.getElementById('un-mute');
 
     // FETCH the remaining time from the server in case the timer was started by someone else
     ac.GETupdate();
@@ -195,8 +226,10 @@ const char clockhtml[] PROGMEM = {R"=====(
     {
       // (D3) CHECK AND SOUND ALARM
         if (ac.tRemain <= 0) {
-          if (ac.sound.paused) { ac.sound.play();
-          ac.stopTimer();
+          if (ac.sound.paused)
+          {
+            if(ac.un_mute.checked) ac.sound.play();
+            ac.stopTimer();
           }
         }
     }
@@ -298,16 +331,21 @@ const char clockhtml[] PROGMEM = {R"=====(
 
   thmChange : function () {
     ac.updateClock(ac.thm.value*60000);
+  },
+
+  MuteFunc: function() {
+    /*alert('toggle player here');*/
   }
+
 };
 
 window.addEventListener("load", ac.init);
   </script>
   </head>
   <body>
-  <center>
     <div class='main-container' id='mainIndex'>
-      <!-- (A) CURRENT TIME -->
+      <center>
+        <!-- (A) CURRENT TIME -->
       <div id="ctime">
         <div class="square">
           <div class="digits" id="cmin">0</div>
@@ -319,23 +357,40 @@ window.addEventListener("load", ac.init);
           <div class="digits" id="csec">00</div>
         </div>
       </div>
-
       <!-- (B) startTimer -->
       <div id="tpick">
-        <div id="tpick-m"></div>
+        <div id="tim_sel_div">
+
+          <div id="tpick-m"></div>
+
+          <div id="picbutton">
+            <input type="checkbox" name="un-mute" id="un-mute">
+            <label for="un-mute" class="mute">
+                <img src="http://upload.wikimedia.org/wikipedia/commons/3/3f/Mute_Icon.svg" alt="Mute_Icon.svg" title="Mute icon">
+            </label>
+            <label for="un-mute" class="unmute">
+                <img src="http://upload.wikimedia.org/wikipedia/commons/2/21/Speaker_Icon.svg" alt="Speaker_Icon.svg" title="Unmute/speaker icon">
+            </label>
+          </div>
+          
+        </div>
+
         <div>
           <input type="button" class="button" value="Start" id="tstart"/>
         </div>
+
         <div>
           <input type="button" class="button" value="Stop" id="tstop" disabled/>
         </div>
+
       </div>
-    </div>
-  </center>
+    </center>
+  </div>
     <!-- (C) ALARM SOUND -->
     <audio id="alarm-sound">
       <source src="https://upload.wikimedia.org/wikipedia/commons/d/d9/Wilhelm_Scream.ogg" type="audio/ogg">
     </audio>
   </body>
 </html>
+
 )====="};
