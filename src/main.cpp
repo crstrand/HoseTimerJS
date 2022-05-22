@@ -9,8 +9,11 @@
 #include <ESPAsyncTCP.h>
 #endif
 #include "ESPAsyncWebServer.h"
-#define ON true
-#define OFF false
+#include <AsyncElegantOTA.h>
+
+#define USE_OTA
+#define ON false
+#define OFF true
 #define RELAY_PIN 2
 
 char ssid[] = "Strandlund_IoT";     //  your network SSID (name)
@@ -56,6 +59,8 @@ public:
     {
       if(request->url() == "/tRemain")
         response->print(String(tRemain)); // reply with the current value of tRemain
+      else if(request->url() == "/version")
+        response->print(String("Compiled: ") + __DATE__ + " " + __TIME__);
       else
         response->print(FPSTR(clockhtml)); // reply with the main page
 
@@ -72,7 +77,7 @@ public:
 void relay_state(bool state)
 {
   digitalWrite(RELAY_PIN,state);
-  Serial.printf("Relay: %s\n",(state==true?"ON":"OFF"));
+  Serial.printf("Relay: %s\n",(state==ON?"ON":"OFF"));
 }
 
 void setup(){
@@ -89,6 +94,11 @@ void setup(){
       return;
   }
   
+  #ifdef USE_OTA
+  // set async server handler for /update requests
+  AsyncElegantOTA.begin(&server);    // Start ElegantOTA
+  #endif
+
   // use one handler for everything as this is a very simple webserver
   server.addHandler(new CaptiveRequestHandler()).setFilter(ON_STA_FILTER);
   //more handlers...
@@ -131,6 +141,6 @@ void loop(){
     prevDuration = tDuration;
     tStop = tDuration + millis();
     tRemain = tDuration;
-    timerState = (tDuration>0);
+    timerState = (tDuration>0?ON:OFF);
   }
 }
