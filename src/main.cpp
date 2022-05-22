@@ -11,7 +11,7 @@
 #include "ESPAsyncWebServer.h"
 #define ON true
 #define OFF false
-#define RELAY_PIN D1
+#define RELAY_PIN 2
 
 char ssid[] = "Strandlund_IoT";     //  your network SSID (name)
 char pass[] = "3066962933";  // your network password
