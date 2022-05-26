@@ -1,0 +1,2 @@
+2022-05-25 21:46 test/js-countdown-timer.html updated to use tRemain.php on a server or reply from ESP device.  _millis must be set true for ESP, false for PHP.
+  tRemain.php implements similar functions to main.cpp to allow debugging of javascript without uploading to an ESP device constantly.

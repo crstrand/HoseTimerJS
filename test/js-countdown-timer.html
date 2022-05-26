@@ -1,9 +1,8 @@
-const char clockhtml[] PROGMEM = {R"=====(
 <!DOCTYPE html>
 <html>
   <head>
     <title>
-      Hose Timer
+      Hose Test
     </title>
 <!--  
 
@@ -44,20 +43,20 @@ button,
 [type="submit"] {
   -webkit-appearance: button;
 }
-[type="search"] {
-  -webkit-appearance: textfield; /* 1 */
-  outline-offset: -2px; /* 2 */
-}
-[type="search"]::-webkit-search-decoration {
-  -webkit-appearance: none;
-}
-::-webkit-file-upload-button {
-  -webkit-appearance: button; /* 1 */
-  font: inherit; /* 2 */
-}
+/* end of normalize.css */
 
 .button {
+  border: 0;
   border-radius: 1vh;
+  width: 85vw;
+  height: auto;
+  font-size: 15vh;
+  font-weight: bold;
+  margin-bottom: 1vh;
+  padding: 2vh 0;
+  color: #fff;
+  cursor: pointer;
+  float: center;
 }
 /* (A) FONT */
 #ctime, #tpick {
@@ -69,43 +68,40 @@ button,
   margin: 5px 0 10px 0;
 }
 
+/* mute button */
 #picbutton {
   float: right; 
   padding: 0 5vw 0 0; /* top right bottom left OR vertical horizontal*/
 }
-
 input#un-mute {
   display: none;
 }
-
 .mute img {
   height: 18vh;
   width: 18vw;
 }
-
 .unmute img {
   display: none;
   height: 18vh;
   width: 18vw;
 }
-
 input#un-mute:checked ~ .unmute img {
   display: initial;
 }
-
 input#un-mute:checked ~ .mute img {
   display: none;
 }
 
 /* (B) CURRENT TIME */
 #ctime {
-  width: auto;
+  width: 90vw;
   height: auto;
-  padding: 2vh; /* top right bottom left OR vertical horizontal*/
-  margin: 0 4vw;
+  padding: 0vh; /* top right bottom left OR vertical horizontal*/
+  margin: 0 2vw;
   border-radius: 1vh;
   background: rgb(255, 0, 0);
   text-align: center;
+  float: center;
 }
 #ctime .header {
   color: #c61d1d;
@@ -116,7 +112,7 @@ input#un-mute:checked ~ .mute img {
   margin: 0px;
 }
 #ctime .digits {
-  font-size: 15vh;
+  font-size: 20vh;
   font-weight: bold;
   background: rgba(255, 255, 255, 0);
   color: #fff;
@@ -159,28 +155,10 @@ input#un-mute:checked ~ .mute img {
 }
 
 #tstart {
-  width: 85vw;
-  height: auto;
-  font-size: 15vh;
-  font-weight: bold;
-  margin-bottom: 1vh;
-  padding: 2vh 0;
   background: #0c9113;
-  color: #fff;
-  border: 0;
-  cursor: pointer;
 }
 #tstop {
-  width: 85vw;
-  height: auto;
-  font-size: 15vh;
-  font-weight: bold;
-  margin-bottom: 1vh;
-  padding: 2vh 0;
   background: #ff0000;
-  color: #fff;
-  border: 0;
-  cursor: pointer;
 }
 
 #tstart:disabled {
@@ -200,8 +178,8 @@ input#un-mute:checked ~ .mute img {
       
 -->
     <script>
+  var _millis = false;
   var ac = {
-
   // (A) INITIALIZE TIMER
   init : function () {
     // (A1) CREATE REFERENCES FOR CLOCK, MIN, SECONDS
@@ -233,7 +211,7 @@ input#un-mute:checked ~ .mute img {
     ac.un_mute = document.getElementById('un-mute');
 
     // FETCH the remaining time from the server in case the timer was started by someone else
-    ac.GETupdate();
+//    ac.GETupdate();
     ac.tickInterval = setInterval(ac.tick, 1000);
   },
 
@@ -285,8 +263,16 @@ input#un-mute:checked ~ .mute img {
     if(_tRemain>0)
     {
     // Time calculations for minutes and seconds
-    var minutes = Math.floor((_tRemain % (1000 * 60 * 60)) / (1000 * 60));
-    var seconds = Math.floor((_tRemain % (1000 * 60)) / 1000);
+    if(_millis==true)
+    {
+      var minutes = Math.floor((_tRemain % (1000 * 60 * 60)) / (1000 * 60));
+      var seconds = Math.floor((_tRemain % (1000 * 60)) / 1000);
+    }
+    else
+    {
+      var minutes = Math.floor((_tRemain % (60 * 60)) / 60);
+      var seconds = Math.floor(_tRemain % 60);
+    }
     var min = ac.padzero(minutes);
     var sec = ac.padzero(seconds);
 
@@ -305,7 +291,10 @@ input#un-mute:checked ~ .mute img {
       if (!ac.timerState) 
       {
         // send POST with ac.thm.value (duration in milliseconds) so the server knows to start the device
-        ac.SETtRemain(ac.thm.value*60000);
+        if(_millis)
+          ac.SETtRemain(ac.thm.value*60000);
+        else
+          ac.SETtRemain(ac.thm.value*60);
         ac.sound.pause();
       }
       ac.thm.disabled = true;
@@ -323,12 +312,11 @@ input#un-mute:checked ~ .mute img {
       clearInterval(ac.tickInterval);
       console.log("tick OFF");
       // add 1 minute to whatever time is remaining
-      ac.tRemain+=60000;
+      if(_millis)
+        ac.tRemain+=60000;
+      else
+        ac.tRemain+=60;
       ac.SETtRemain(ac.tRemain);
-      ac.timerState = true;
-      // re-enable tick
-      ac.tickInterval = setInterval(ac.tick, 1000);
-      console.log("tick ON");
     }
   },
 
@@ -340,34 +328,34 @@ input#un-mute:checked ~ .mute img {
     ac.tstart.value = "Start";
     ac.tstop.disabled = true;
     ac.ctime.style.backgroundColor = "red";
-    ac.updateClock(ac.thm.value*60000);
+    if(_millis)
+      ac.SETtRupdateClockemain(ac.thm.value*60000);
+    else
+      ac.updateClock(ac.thm.value*60);
     // send POST with zero "0" to turn off device
     ac.SETtRemain(0);
     ac.timerState = false;
   },
 
   SETtRemain : async function (data) {
+    var tempval;
     try {
       // disable tick during POST
       clearInterval(ac.tickInterval);
       console.log("tick OFF");
       ac.tRemain = parseInt(data);
       console.log("SETtRemain: ac.tRemain = "+ac.tRemain.toString());
+      var formdata = new FormData();
+      formdata.append('tRemain',data);
 
-      const response = await fetch('/tRemain',{ 
+      //const response = await fetch('http://'+location.host+'/tRemain',{ 
+      const response = await fetch('/tRemain.php',{ 
         method: 'POST',
-        mode: 'cors', // no-cors, *cors, same-origin
-        cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
-        credentials: 'omit', // include, *same-origin, omit
-        headers: {
-          'Content-Type': 'application/json'
-        },
         redirect: 'follow', // manual, *follow, error
-        referrerPolicy: 'no-referrer', // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
-        body: JSON.stringify(data) // body data type must match "Content-Type" header
+        body: formdata // body data type must match "Content-Type" header
         });
-
-      const tempval = await response.json();
+        tempval = await response.text();
+        console.log("POST response: ["+tempval+"]");
     }
     catch (error) {
       console.error(error);
@@ -379,7 +367,8 @@ input#un-mute:checked ~ .mute img {
   },
 
   GETupdate : function() {
-    fetch('http://hosetimer/tRemain', { method: 'GET' })
+    //fetch('http://'+location.host+'/tRemain', { method: 'GET' })
+    fetch('/tRemain.php', { method: 'GET' })
       .then(response => response.text()) 
       .then(function(mydata) {
         ac.tRemain = parseInt(mydata);
@@ -394,7 +383,10 @@ input#un-mute:checked ~ .mute img {
   },
 
   thmChange : function () {
-    ac.updateClock(ac.thm.value*60000);
+    if(_millis)
+      ac.updateClock(ac.thm.value*60*1000);
+    else
+      ac.updateClock(ac.thm.value*60); // PHP server uses seconds not milliseconds
   },
 
   MuteFunc: function() {
@@ -456,5 +448,3 @@ window.addEventListener("load", ac.init);
     </audio>
   </body>
 </html>
-
-)====="};
